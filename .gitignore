@@ -1,0 +1,42 @@
+# Existing environment: never commit or recreate it.
+.venv/
+venv/
+
+# Local data, uploads, model weights, and secrets.
+data/*
+!data/.gitkeep
+uploads/
+uploaded_logs/
+logs/
+models/
+*.log
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.db
+*.db-*
+*.gguf
+*.gguf.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.aws/
+
+# Python, tools, editors, and macOS.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.uv-cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.DS_Store
+.idea/
+.vscode/

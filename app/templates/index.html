@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Analyze security logs privately with local AI and cross-chunk evidence correlation.">
+  <meta name="color-scheme" content="dark light">
+  <title>{{ app_name }}</title>
+  <link rel="icon" href="{{ url_for('static', path='/favicon.svg') }}" type="image/svg+xml">
+  <script src="{{ url_for('static', path='/theme.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  <script src="{{ url_for('static', path='/app.js') }}" defer></script>
+</head>
+<body data-max-upload-bytes="{{ max_upload_bytes }}">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="{{ app_name }} home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v6c0 4 3.5 7 7.5 9 4-2 7.5-5 7.5-9V6Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>
+        <span>LOCAL AI<span class="brand-subtitle">Security Log Analyzer</span></span>
+      </a>
+      <p class="nav-caption">WORKSPACE</p>
+      <nav>
+        <a class="nav-item active" href="#upload"><span aria-hidden="true">↥</span> Analyze a log</a>
+        <a class="nav-item" href="#findings"><span aria-hidden="true">≡</span> Security findings</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-label"><span class="dot"></span> PRIVATE BY DESIGN</div>
+        <p>Your logs stay on this machine.<br>No cloud inference. No API keys.</p>
+        <div class="model-spec"><span>Local model</span><strong>{{ model_alias }}</strong><span>{{ context_tokens }} token context · Sequential analysis</span></div>
+        <small>Local dashboard</small>
+      </div>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <span class="breadcrumb">Workspace <span>/</span> <strong>Log analysis</strong></span>
+        <div class="service-health" aria-label="Service health">
+          <span class="service-pill" id="backend-status" data-state="checking">Backend · Checking</span>
+          <span class="service-pill" id="model-status" data-state="checking">Model · Checking</span>
+          <button class="icon-button" id="refresh-status" type="button" aria-label="Refresh service status" title="Refresh service status">↻</button>
+          <button class="icon-button" id="theme-toggle" type="button" aria-label="Light mode" aria-pressed="false" title="Switch to light mode">
+            <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+            <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="content" id="main">
+        <div class="page-heading">
+          <div><p class="eyebrow">YOUR LOCAL SECURITY WORKSPACE</p><h1>Make sense of your logs.</h1><p class="intro">From raw activity to connected evidence. All on your machine.</p></div>
+          <span class="privacy-badge"><span class="dot"></span> LOCAL ANALYSIS</span>
+        </div>
+        <div id="service-error" class="notice warning" role="status" hidden></div>
+
+        <div class="workflow-grid" id="upload">
+          <section class="panel upload-panel" aria-labelledby="upload-title">
+            <div class="section-heading"><div class="section-title"><span class="step">01</span><h2 id="upload-title">Upload a log</h2></div><span class="muted small">.log / .txt</span></div>
+            <form id="upload-form" novalidate>
+              <input class="visually-hidden" id="log-file" name="file" type="file" accept=".log,.txt" aria-label="Choose a log or text file">
+              <div class="dropzone" id="dropzone">
+                <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg></span>
+                <strong>Drop your log file here</strong><span class="muted small">or choose a file from your computer</span>
+                <button class="button secondary compact" id="browse-file" type="button">Browse files</button>
+                <span class="muted tiny" id="upload-limit">UTF-8 text · Up to {{ (max_upload_bytes / 1048576)|round(1) }} MiB</span>
+              </div>
+              <div class="selected-file" id="selected-file" hidden><span class="file-symbol" aria-hidden="true">≡</span><div><strong id="selected-name"></strong><span class="muted small" id="selected-size"></span></div><button id="remove-file" class="icon-button" type="button" aria-label="Remove selected file">×</button></div>
+              <p class="field-message error" id="upload-error" role="alert" hidden></p>
+              <button class="button primary full-width" id="upload-button" type="submit">Upload log <span aria-hidden="true">↑</span></button>
+              <p class="muted tiny upload-note">Uploading prepares the log. You decide when analysis starts.</p>
+            </form>
+          </section>
+
+          <section class="panel analysis-panel" aria-labelledby="analysis-title">
+            <div class="section-heading"><div class="section-title"><span class="step">02</span><h2 id="analysis-title">Analysis workspace</h2></div><span class="status-badge" id="analysis-status" role="status">Awaiting upload</span></div>
+            <div class="active-file"><span class="file-symbol" aria-hidden="true">≡</span><div><strong id="analysis-filename">No log selected for analysis</strong><span class="muted small" id="analysis-meta">Upload a file to prepare its original evidence.</span></div></div>
+            <div class="progress-heading"><span id="progress-label">Ready when you are</span><strong id="progress-percent">—</strong></div>
+            <progress id="analysis-progress" max="100" value="0" aria-label="Completed AI analysis chunks"></progress>
+            <dl class="progress-stats">
+              <div><dt>Total chunks</dt><dd id="total-chunks">—</dd></div>
+              <div><dt>Completed</dt><dd id="completed-chunks">—</dd></div>
+              <div><dt>Current chunk</dt><dd id="current-chunk">—</dd></div>
+              <div><dt>Run elapsed</dt><dd id="elapsed-time">—</dd></div>
+            </dl>
+            <p class="analysis-hint muted small" id="analysis-hint">Chunks are analyzed sequentially, then related evidence is linked across the full log.</p>
+            <div id="analysis-error" class="notice warning" role="alert" hidden></div>
+            <div class="analysis-actions"><button class="button primary" id="start-analysis" type="button" disabled>Start analysis <span aria-hidden="true">→</span></button><button class="button secondary" id="refresh-analysis" type="button" disabled>Refresh progress</button><span class="muted tiny" id="polling-note">No analysis running</span></div>
+            <details class="restore-analysis"><summary>Open an existing analysis</summary><form id="open-form"><label class="visually-hidden" for="analysis-id">Analysis ID</label><input id="analysis-id" type="text" placeholder="Paste an analysis UUID" autocomplete="off" spellcheck="false"><button class="button secondary compact" id="open-analysis" type="submit">Open</button></form><p id="open-error" class="field-message error" role="alert" hidden></p></details>
+          </section>
+        </div>
+
+        <section class="report-section" id="findings" aria-labelledby="findings-title">
+          <div class="section-heading report-heading"><div><p class="eyebrow">CONNECTED EVIDENCE, CLEARER DECISIONS</p><h2 id="findings-title">Security findings <span class="report-badge" id="report-badge">No report yet</span></h2></div><div class="report-actions"><button class="button secondary compact" id="refresh-report" type="button" disabled>Refresh report</button><a class="button secondary compact" id="download-report" aria-disabled="true" download><span aria-hidden="true">↓</span> Download JSON</a></div></div>
+          <p class="muted small report-caption">Related events across chunks are combined into incidents. Findings describe possible risks, not confirmed attacks.</p>
+          <div id="report-error" class="notice warning" role="alert" hidden></div>
+          <p id="export-status" class="muted small" role="status" hidden></p>
+          <div class="summary-grid" aria-label="Finding counts">
+            <article class="stat-card total"><span>Total findings</span><strong id="count-total">—</strong><small>Combined incidents</small></article>
+            <article class="stat-card critical"><span><i></i> Critical</span><strong id="count-critical">—</strong><small>Highest severity</small></article>
+            <article class="stat-card high"><span><i></i> High</span><strong id="count-high">—</strong><small>Prioritize investigation</small></article>
+            <article class="stat-card medium"><span><i></i> Medium</span><strong id="count-medium">—</strong><small>Review the evidence</small></article>
+            <article class="stat-card low"><span><i></i> Low</span><strong id="count-low">—</strong><small>Monitor and assess</small></article>
+          </div>
+          <details id="report-notes" class="report-notes" hidden><summary id="notes-title">Analysis notes</summary><ul id="notes-list"></ul></details>
+          <div class="panel findings-panel">
+            <div class="filters" id="filters">
+              <div class="filter-field"><label for="filter-search">Source or identifier</label><input id="filter-search" type="search" placeholder="Search IP or identifier…" maxlength="128" disabled></div>
+              <div class="filter-field"><label for="filter-severity">Severity</label><select id="filter-severity" disabled><option value="">All severities</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+              <div class="filter-field"><label for="filter-type">Attack type</label><select id="filter-type" disabled><option value="">All attack types</option></select></div>
+              <label class="checkbox-filter"><input id="filter-multiple" type="checkbox" disabled><span>Multiple evidence lines</span></label>
+            </div>
+            <div class="results-toolbar"><p id="results-count" role="status">Your findings will appear here</p><button class="text-button" id="clear-filters" type="button" disabled>Clear filters</button></div>
+            <div class="empty-state" id="empty-state"><span class="empty-icon" aria-hidden="true">⌕</span><h3 id="empty-title">A clear view starts with a log.</h3><p id="empty-message">Upload a .log or .txt file, start analysis, and review the connected evidence here.</p></div>
+            <div id="findings-list" aria-label="Security incidents"></div>
+            <div class="pagination" id="pagination" hidden><button class="button secondary compact" id="previous-page" type="button">← Previous</button><span id="page-label" class="muted small"></span><button class="button secondary compact" id="next-page" type="button">Next →</button></div>
+          </div>
+        </section>
+        <noscript><p class="notice warning">Enable JavaScript to upload logs and use the dashboard. The <a href="/health">backend health</a> and <a href="/api/model/health">model health</a> endpoints remain available.</p></noscript>
+        <footer><span>{{ app_name }}</span><span>Local inference. Original evidence. Human review.</span><span class="visually-hidden">Model endpoint: {{ model_base_url }}</span></footer>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
